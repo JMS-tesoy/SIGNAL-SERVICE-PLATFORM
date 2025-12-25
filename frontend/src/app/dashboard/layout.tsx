@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Laptop,
   Shield,
+  Download,
 } from 'lucide-react';
 import { useAuthStore, useUIStore } from '@/lib/store';
 
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/dashboard/signals', icon: Signal, label: 'Signals' },
   { href: '/dashboard/accounts', icon: Laptop, label: 'MT5 Accounts' },
   { href: '/dashboard/subscription', icon: CreditCard, label: 'Subscription' },
+  { href: '/dashboard/downloads', icon: Download, label: 'Downloads' },
   { href: '/dashboard/security', icon: Shield, label: 'Security' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];

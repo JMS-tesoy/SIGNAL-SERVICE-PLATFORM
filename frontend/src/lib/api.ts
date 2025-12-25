@@ -419,6 +419,24 @@ export const securityApi = {
     }>('/api/security/activity', { token }),
 };
 
+// =============================================================================
+// DOWNLOAD API
+// =============================================================================
+
+export interface DownloadFile {
+  id: string;
+  name: string;
+  description: string;
+  filename: string;
+}
+
+export const downloadApi = {
+  getAvailableDownloads: (token: string) =>
+    apiFetch<{ downloads: DownloadFile[] }>('/api/downloads', { token }),
+
+  getDownloadUrl: (fileId: string) => `${API_URL}/api/downloads/${fileId}`,
+};
+
 export default {
   auth: authApi,
   otp: otpApi,
@@ -426,4 +444,5 @@ export default {
   signal: signalApi,
   user: userApi,
   security: securityApi,
+  download: downloadApi,
 };
