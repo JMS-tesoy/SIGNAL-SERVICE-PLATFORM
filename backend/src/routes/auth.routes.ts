@@ -33,12 +33,14 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
+  rememberMe: z.boolean().optional().default(false),
 });
 
 const twoFactorSchema = z.object({
   tempToken: z.string(),
   code: z.string().length(6, 'Code must be 6 digits'),
   method: z.enum(['EMAIL', 'SMS', 'TOTP']),
+  rememberMe: z.boolean().optional().default(false),
 });
 
 const resetPasswordSchema = z.object({

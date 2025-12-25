@@ -51,7 +51,7 @@ export default function SecurityPage() {
     try {
       const result = await otpApi.getStatus(accessToken);
       if (result.data) {
-        setStatus(result.data);
+        setStatus({ ...result.data, twoFactorMethod: result.data.twoFactorMethod || null, hasPhone: false, });
       }
     } catch (err) {
       console.error('Failed to fetch 2FA status:', err);

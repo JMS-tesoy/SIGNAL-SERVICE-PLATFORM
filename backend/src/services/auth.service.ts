@@ -22,6 +22,7 @@ interface RegisterInput {
 }
 
 interface LoginInput {
+  rememberMe?: boolean;
   email: string;
   password: string;
   ipAddress?: string;
@@ -53,6 +54,11 @@ interface TokenPayload {
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+const REMEMBER_ME_REFRESH_TOKEN_EXPIRES_IN = process.env.REMEMBER_ME_REFRESH_TOKEN_EXPIRES_IN || '30d';
+
+// Session durations in milliseconds
+const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const REMEMBER_ME_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // =============================================================================
 // PASSWORD HASHING
@@ -81,14 +87,15 @@ export function generateAccessToken(user: Pick<User, 'id' | 'email' | 'role'>): 
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
-export function generateRefreshToken(user: Pick<User, 'id' | 'email' | 'role'>): string {
+export function generateRefreshToken(user: Pick<User, 'id' | 'email' | 'role'>, rememberMe: boolean = false): string {
   const payload: TokenPayload = {
     userId: user.id,
     email: user.email,
     role: user.role,
     type: 'refresh',
   };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRES_IN });
+  const expiresIn = rememberMe ? REMEMBER_ME_REFRESH_TOKEN_EXPIRES_IN : REFRESH_TOKEN_EXPIRES_IN;
+  return jwt.sign(payload, JWT_SECRET, { expiresIn });
 }
 
 export function generateTempToken(userId: string): string {
@@ -241,7 +248,7 @@ export async function login(input: LoginInput): Promise<AuthResult> {
 
     // Generate tokens
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user, input.rememberMe);
 
     // Create session
     await prisma.session.create({
@@ -251,7 +258,7 @@ export async function login(input: LoginInput): Promise<AuthResult> {
         refreshToken,
         ipAddress: input.ipAddress,
         userAgent: input.userAgent,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        expiresAt: new Date(Date.now() + (input.rememberMe ? REMEMBER_ME_SESSION_DURATION_MS : SESSION_DURATION_MS)),
       },
     });
 
@@ -302,7 +309,8 @@ export async function verifyTwoFactorAndLogin(
   code: string,
   method: TwoFactorMethod,
   ipAddress?: string,
-  userAgent?: string
+  userAgent?: string,
+  rememberMe: boolean = false
 ): Promise<AuthResult> {
   try {
     // Verify temp token
@@ -342,7 +350,7 @@ export async function verifyTwoFactorAndLogin(
 
     // Generate tokens
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user, rememberMe);
 
     // Create session
     await prisma.session.create({
@@ -352,7 +360,7 @@ export async function verifyTwoFactorAndLogin(
         refreshToken,
         ipAddress,
         userAgent,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + (rememberMe ? REMEMBER_ME_SESSION_DURATION_MS : SESSION_DURATION_MS)),
       },
     });
 
