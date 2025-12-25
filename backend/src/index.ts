@@ -16,6 +16,7 @@ import subscriptionRoutes from './routes/subscription.routes.js';
 import signalRoutes from './routes/signal.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import downloadRoutes from './routes/download.routes.js';
 
 // Middleware
 import { requestLogger } from './middleware/logger.middleware.js';
@@ -82,6 +83,7 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/signals', signalRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/downloads', downloadRoutes);
 
 // =============================================================================
 // ERROR HANDLING
