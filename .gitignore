@@ -19,6 +19,7 @@ out/
 # IDE
 .idea/
 .vscode/
+.claude/settings.local.json
 *.swp
 *.swo
 .DS_Store
