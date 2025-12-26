@@ -88,9 +88,13 @@ export function startCronJobs() {
 // CHECK EXPIRING SUBSCRIPTIONS
 // =============================================================================
 
+// Track notified subscriptions to prevent duplicate emails on same-day re-runs
+const notifiedExpiringToday = new Map<string, string>(); // subId -> dateString
+
 async function checkExpiringSubscriptions() {
   console.log('Checking expiring subscriptions...');
 
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   const threeDaysFromNow = new Date();
   threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
 
@@ -106,7 +110,16 @@ async function checkExpiringSubscriptions() {
     include: { user: true, tier: true },
   });
 
+  let emailsSent = 0;
+  let skippedDuplicates = 0;
+
   for (const sub of expiringSubscriptions) {
+    // Skip if already notified today (prevents duplicate emails on re-run)
+    if (notifiedExpiringToday.get(sub.id) === today) {
+      skippedDuplicates++;
+      continue;
+    }
+
     const daysLeft = Math.ceil(
       (sub.currentPeriodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     );
@@ -118,7 +131,14 @@ async function checkExpiringSubscriptions() {
       html: emailData.html,
     });
 
+    notifiedExpiringToday.set(sub.id, today);
+    emailsSent++;
     console.log(`Sent expiry reminder to ${sub.user.email} (${daysLeft} days left)`);
+  }
+
+  // Clean up old entries from previous days
+  for (const [subId, dateStr] of notifiedExpiringToday.entries()) {
+    if (dateStr !== today) notifiedExpiringToday.delete(subId);
   }
 
   // Downgrade expired subscriptions to free tier
@@ -149,7 +169,7 @@ async function checkExpiringSubscriptions() {
     }
   }
 
-  console.log(`Processed ${expiringSubscriptions.length} expiring, ${expiredSubscriptions.length} expired`);
+  console.log(`Expiring: ${emailsSent} emailed, ${skippedDuplicates} skipped (already notified). Expired: ${expiredSubscriptions.length} downgraded.`);
 }
 
 // =============================================================================
@@ -169,8 +189,22 @@ async function generateMonthlyReports() {
     include: { subscription: { include: { tier: true } } },
   });
 
+  let newReports = 0;
+  let updatedReports = 0;
+
   for (const user of users) {
     try {
+      // Check if report already exists (to avoid duplicate emails on re-run)
+      const existingReport = await prisma.monthlyReport.findUnique({
+        where: {
+          userId_year_month: {
+            userId: user.id,
+            year: lastMonth.getFullYear(),
+            month: lastMonth.getMonth() + 1,
+          },
+        },
+      });
+
       const executions = await prisma.signalExecution.findMany({
         where: {
           userId: user.id,
@@ -223,17 +257,23 @@ async function generateMonthlyReports() {
         },
       });
 
-      const stats = { totalSignals, executedSignals, winRate, netProfit: 0 };
-      const emailData = emailTemplates.monthlyReport(monthName, stats);
-      await sendEmail({ to: user.email, subject: emailData.subject, html: emailData.html });
-
-      console.log(`Generated monthly report for ${user.email}`);
+      // Only send email if this is a new report (not a re-run update)
+      if (!existingReport) {
+        const stats = { totalSignals, executedSignals, winRate, netProfit: 0 };
+        const emailData = emailTemplates.monthlyReport(monthName, stats);
+        await sendEmail({ to: user.email, subject: emailData.subject, html: emailData.html });
+        newReports++;
+        console.log(`Generated and emailed monthly report for ${user.email}`);
+      } else {
+        updatedReports++;
+        console.log(`Updated existing monthly report for ${user.email} (no email)`);
+      }
     } catch (error) {
       console.error(`Failed to generate report for ${user.email}:`, error);
     }
   }
 
-  console.log(`Generated monthly reports for ${users.length} users`);
+  console.log(`Monthly reports: ${newReports} new (emailed), ${updatedReports} updated`);
 }
 
 // =============================================================================

@@ -191,8 +191,10 @@ export async function getPendingSignals(
 }
 
 // =============================================================================
-// ACKNOWLEDGE SIGNAL EXECUTION
+// ACKNOWLEDGE SIGNAL EXECUTION (IDEMPOTENT)
 // =============================================================================
+
+const TERMINAL_STATUSES: ExecutionStatus[] = ['EXECUTED', 'FAILED', 'EXPIRED', 'SKIPPED'];
 
 export async function acknowledgeExecution(
   executionId: string,
@@ -208,6 +210,24 @@ export async function acknowledgeExecution(
   }
 ): Promise<SignalResult> {
   try {
+    // Check current execution state first (idempotency check)
+    const existing = await prisma.signalExecution.findFirst({
+      where: { id: executionId, userId },
+    });
+
+    if (!existing) {
+      return { success: false, message: 'Execution not found' };
+    }
+
+    // If already in a terminal state, return success (idempotent)
+    if (TERMINAL_STATUSES.includes(existing.status)) {
+      return {
+        success: true,
+        message: `Already acknowledged as ${existing.status}`
+      };
+    }
+
+    // Parse incoming status
     let execStatus: ExecutionStatus;
     if (status.startsWith('EXECUTED')) execStatus = 'EXECUTED';
     else if (status.startsWith('FAILED')) execStatus = 'FAILED';
@@ -215,8 +235,13 @@ export async function acknowledgeExecution(
     else if (status.startsWith('REJECTED') || status.startsWith('SKIPPED')) execStatus = 'SKIPPED';
     else execStatus = 'PENDING';
 
-    await prisma.signalExecution.update({
-      where: { id: executionId, userId },
+    // Use conditional update to prevent race conditions
+    const result = await prisma.signalExecution.updateMany({
+      where: {
+        id: executionId,
+        userId,
+        status: 'PENDING', // Only update if still PENDING
+      },
       data: {
         status: execStatus,
         executedAt: execStatus === 'EXECUTED' ? new Date() : null,
@@ -229,6 +254,18 @@ export async function acknowledgeExecution(
         errorMessage: details?.errorMessage || (status.includes(':') ? status.split(':')[1] : null),
       },
     });
+
+    // If no rows updated, another request already processed it
+    if (result.count === 0) {
+      const current = await prisma.signalExecution.findFirst({
+        where: { id: executionId, userId },
+        select: { status: true },
+      });
+      return {
+        success: true,
+        message: `Already acknowledged as ${current?.status || 'UNKNOWN'}`
+      };
+    }
 
     return { success: true, message: 'Execution acknowledged' };
   } catch (error) {

@@ -169,5 +169,10 @@ export async function requireActiveSubscription(req: Request, res: Response, nex
     return res.status(403).json({ error: 'Active subscription required' });
   }
 
+  // Check if subscription period has expired (cron may not have updated status yet)
+  if (subscription.currentPeriodEnd < new Date()) {
+    return res.status(403).json({ error: 'Subscription period has expired' });
+  }
+
   next();
 }

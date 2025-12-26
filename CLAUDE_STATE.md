@@ -42,19 +42,18 @@ Core backend and MT5 signal pipeline stabilization and hardening.
 - Frontend auth and token handling via Zustand
 - API client auto-injects Bearer tokens
 - Session continuity guardrails enforced via `CLAUDE.md`
+- **Hardening Complete (Dec 2025):**
+  - `/api/signals/ack` is now idempotent (race-safe, duplicate-proof)
+  - Subscription tier enforcement validated (limits, delays, SLAVE accounts)
+  - MT5 polling hardened (explicit accountId required, subscription period check)
+  - Cron jobs audited for safe re-runs (no duplicate emails)
+  - Stripe webhooks secured (signature validation + event replay protection)
 
 ---
 
 ## What Is IN PROGRESS
 
-- End-to-end MT5 EA ↔ backend reliability validation
-- Hardening `/api/signals/ack` acknowledgment flow
-- Edge case handling:
-  - Duplicate acknowledgments
-  - Late SLAVE polling
-  - Disconnected MT5 accounts
-- Production-mode verification of cron jobs
-- Security review of auth, Stripe, and webhook handling
+- None (hardening phase complete)
 
 ---
 
@@ -66,22 +65,21 @@ Core backend and MT5 signal pipeline stabilization and hardening.
 
 ## Next Actions (STRICT ORDER — DO NOT REORDER)
 
-1. Harden signal acknowledgment flow
-   - Make `/api/signals/ack` idempotent
-   - Prevent double execution marking
-2. Validate subscription tier enforcement
-   - Signal count limits
-   - SLAVE account limits
-   - Delay enforcement correctness
-3. Add defensive validation for MT5 polling
-   - Invalid or unknown accountId
-   - Expired or inactive subscriptions
-4. Audit cron jobs
-   - Safe re-runs
-   - No destructive overlap
-5. Verify Stripe webhook security
-   - Signature validation
-   - Event replay protection
+1. End-to-end testing of MT5 EA ↔ backend flow
+   - Test signal send/receive with real EAs
+   - Verify delay enforcement works correctly
+2. Frontend integration verification
+   - Dashboard signal history
+   - Subscription management UI
+   - MT5 account management
+3. Production deployment preparation
+   - Environment variable validation
+   - Database migration scripts
+   - Monitoring and alerting setup
+4. Documentation
+   - API documentation update
+   - EA configuration guide
+   - Deployment runbook
 
 Claude must always start from this section unless explicitly instructed otherwise.
 

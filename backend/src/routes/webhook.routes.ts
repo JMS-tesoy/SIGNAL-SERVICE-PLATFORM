@@ -13,6 +13,28 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2023-10-16",
 });
 
+// Track processed event IDs to prevent replay (in-memory, resets on restart)
+// For production, consider Redis or database-backed storage
+const processedEvents = new Set<string>();
+const MAX_PROCESSED_EVENTS = 10000;
+
+function markEventProcessed(eventId: string): boolean {
+  // If already processed, return false (duplicate)
+  if (processedEvents.has(eventId)) {
+    return false;
+  }
+
+  // Prevent unbounded memory growth
+  if (processedEvents.size >= MAX_PROCESSED_EVENTS) {
+    const iterator = processedEvents.values();
+    const oldest = iterator.next().value;
+    processedEvents.delete(oldest);
+  }
+
+  processedEvents.add(eventId);
+  return true;
+}
+
 // =============================================================================
 // STRIPE WEBHOOK
 // =============================================================================
@@ -38,7 +60,13 @@ router.post("/stripe", async (req: Request, res: Response) => {
       .json({ error: "Webhook signature verification failed" });
   }
 
-  console.log("Received Stripe event:", event.type);
+  console.log("Received Stripe event:", event.type, event.id);
+
+  // Check for duplicate events (replay protection)
+  if (!markEventProcessed(event.id)) {
+    console.log(`Duplicate event ignored: ${event.id}`);
+    return res.json({ received: true, duplicate: true });
+  }
 
   try {
     switch (event.type) {
@@ -220,6 +248,16 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
 
+  // Check if this invoice was already processed (database-level idempotency)
+  const existingPayment = await prisma.payment.findFirst({
+    where: { stripeInvoiceId: invoice.id },
+  });
+
+  if (existingPayment) {
+    console.log(`Invoice ${invoice.id} already processed, skipping`);
+    return;
+  }
+
   // Find subscription by customer ID
   const subscription = await prisma.subscription.findFirst({
     where: { stripeCustomerId: customerId },
@@ -261,6 +299,16 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
+
+  // Check if this failed invoice was already recorded (database-level idempotency)
+  const existingPayment = await prisma.payment.findFirst({
+    where: { stripeInvoiceId: invoice.id, status: "FAILED" },
+  });
+
+  if (existingPayment) {
+    console.log(`Failed invoice ${invoice.id} already recorded, skipping`);
+    return;
+  }
 
   const subscription = await prisma.subscription.findFirst({
     where: { stripeCustomerId: customerId },

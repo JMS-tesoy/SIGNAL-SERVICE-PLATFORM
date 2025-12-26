@@ -22,10 +22,16 @@ const router = Router();
 
 router.post('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const { type, action, data, account_id } = req.body;
+  const accountId = account_id || req.accountId;
+
+  // Require explicit account_id for all signal operations
+  if (!accountId || accountId.trim() === '') {
+    return res.status(400).json({ error: 'account_id is required' });
+  }
 
   // Handle different message types
   if (type === 'HEARTBEAT') {
-    const result = await updateHeartbeat(req.user!.id, account_id, data);
+    const result = await updateHeartbeat(req.user!.id, accountId, data);
     return res.json(result);
   }
 
@@ -41,7 +47,7 @@ router.post('/', authenticate, asyncHandler(async (req: Request, res: Response) 
       ticket: data?.ticket,
       magic: data?.magic,
       comment: data?.comment,
-      accountId: account_id || req.accountId || 'DEFAULT',
+      accountId,
     };
 
     const result = await receiveSignal(req.user!.id, signal);
@@ -72,7 +78,11 @@ router.post('/', authenticate, asyncHandler(async (req: Request, res: Response) 
 
 router.post('/heartbeat', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const { account_id, data } = req.body;
-  const accountId = account_id || req.accountId || 'DEFAULT';
+  const accountId = account_id || req.accountId;
+
+  if (!accountId || accountId.trim() === '') {
+    return res.status(400).json({ error: 'account_id is required' });
+  }
 
   const result = await updateHeartbeat(req.user!.id, accountId, {
     balance: data?.balance,
@@ -88,7 +98,13 @@ router.post('/heartbeat', authenticate, asyncHandler(async (req: Request, res: R
 // =============================================================================
 
 router.get('/pending', authenticate, requireActiveSubscription, asyncHandler(async (req: Request, res: Response) => {
-  const accountId = (req.query.account_id as string) || req.accountId || 'DEFAULT';
+  const accountId = (req.query.account_id as string) || req.accountId;
+
+  // Require explicit account_id - no silent defaults
+  if (!accountId || accountId.trim() === '') {
+    return res.status(400).json({ error: 'account_id is required' });
+  }
+
   const result = await getPendingSignals(req.user!.id, accountId);
 
   if (!result.success) {

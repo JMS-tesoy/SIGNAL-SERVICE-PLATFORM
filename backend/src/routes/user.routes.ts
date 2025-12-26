@@ -157,11 +157,18 @@ router.post('/mt5-accounts', authenticate, asyncHandler(async (req: Request, res
       include: { tier: true },
     });
 
+    // Users without an active subscription cannot add SLAVE accounts
+    if (!subscription || subscription.status !== 'ACTIVE') {
+      return res.status(403).json({
+        error: 'An active subscription is required to add slave accounts.',
+      });
+    }
+
     const currentSlaveCount = await prisma.mT5Account.count({
       where: { userId: req.user!.id, accountType: 'SLAVE' },
     });
 
-    if (subscription && currentSlaveCount >= subscription.tier.maxSlaveAccounts) {
+    if (currentSlaveCount >= subscription.tier.maxSlaveAccounts) {
       return res.status(403).json({
         error: `Your plan allows ${subscription.tier.maxSlaveAccounts} slave account(s). Upgrade to add more.`,
       });
