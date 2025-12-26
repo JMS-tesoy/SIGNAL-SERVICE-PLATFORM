@@ -32,6 +32,11 @@ const PORT = process.env.PORT || 3001;
 // GLOBAL MIDDLEWARE
 // =============================================================================
 
+// Trust proxy for Railway/Heroku/etc (fixes X-Forwarded-For header issues with rate limiting)
+if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+  app.set('trust proxy', 1);
+}
+
 // Security headers
 app.use(helmet());
 
@@ -39,6 +44,8 @@ app.use(helmet());
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
   'http://localhost:3000',
+  // Auto-detect Railway frontend URL
+  'https://signal-service-frontend-production.up.railway.app',
   // Add production URLs via CORS_ORIGINS env var (comma-separated)
   ...(process.env.CORS_ORIGINS?.split(',').map(o => o.trim()) || []),
 ].filter(Boolean);
