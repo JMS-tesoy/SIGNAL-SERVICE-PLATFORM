@@ -48,12 +48,22 @@ Core backend and MT5 signal pipeline stabilization and hardening.
   - MT5 polling hardened (explicit accountId required, subscription period check)
   - Cron jobs audited for safe re-runs (no duplicate emails)
   - Stripe webhooks secured (signature validation + event replay protection)
+- **Frontend Enhancement (Dec 2025):**
+  - Dark/Light theme toggle with CSS variables and smooth transitions
+  - Advanced analytics charts (Performance, WinLoss, SymbolBar, SuccessGauge)
+  - Admin dashboard with role-based access (Overview, Users, Signals, Revenue)
+  - Admin API client with all management endpoints
+  - Display font (Space Grotesk) for headers
+  - Micro-interactions and polish (noise texture, glass effects, animations)
+  - Sidebar toggle fixed (ChevronLeft/Right on desktop, Menu on mobile)
+  - Avatar change functionality in Settings (upload, remove, base64 storage)
+  - Avatar display in dashboard header and sidebar
 
 ---
 
 ## What Is IN PROGRESS
 
-- None (hardening phase complete)
+- MT5 Live Connection Testing
 
 ---
 

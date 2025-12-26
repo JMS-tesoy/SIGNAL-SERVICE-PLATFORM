@@ -16,6 +16,12 @@ import {
 } from 'lucide-react';
 import { useAuthStore, useSignalStore } from '@/lib/store';
 import { signalApi, subscriptionApi, userApi } from '@/lib/api';
+import {
+  PerformanceChart,
+  WinLossDonut,
+  SymbolBarChart,
+  SuccessGauge,
+} from '@/components/charts';
 
 interface StatCardProps {
   title: string;
@@ -195,7 +201,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold mb-2">Dashboard</h1>
+        <h1 className="text-3xl font-display font-bold mb-2">Dashboard</h1>
         <p className="text-foreground-muted">
           Overview of your trading activity and performance
         </p>
@@ -230,6 +236,37 @@ export default function DashboardPage() {
           icon={Clock}
           color="bg-gradient-to-br from-accent-yellow to-amber-600"
         />
+      </div>
+
+      {/* Analytics Charts - Row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 card">
+          <PerformanceChart isLoading={isLoading} />
+        </div>
+        <div className="card">
+          <WinLossDonut
+            wins={stats?.executed || 0}
+            losses={stats?.failed || 0}
+            pending={stats?.skipped || 0}
+            isLoading={isLoading}
+          />
+        </div>
+      </div>
+
+      {/* Analytics Charts - Row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card">
+          <SymbolBarChart
+            data={stats?.bySymbol}
+            isLoading={isLoading}
+          />
+        </div>
+        <div className="card">
+          <SuccessGauge
+            rate={winRate}
+            isLoading={isLoading}
+          />
+        </div>
       </div>
 
       {/* Main content grid */}
@@ -284,24 +321,6 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-
-      {/* Signal Stats by Symbol */}
-      {stats?.bySymbol && Object.keys(stats.bySymbol).length > 0 && (
-        <div className="card">
-          <h2 className="text-lg font-semibold mb-6">Signals by Symbol</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {Object.entries(stats.bySymbol).map(([symbol, count]) => (
-              <div
-                key={symbol}
-                className="bg-background-elevated rounded-xl p-4 text-center"
-              >
-                <p className="font-mono font-medium mb-1">{symbol}</p>
-                <p className="text-2xl font-bold text-primary">{count}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

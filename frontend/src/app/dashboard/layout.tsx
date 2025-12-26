@@ -16,11 +16,17 @@ import {
   X,
   Bell,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Laptop,
   Shield,
   Download,
+  Users,
+  DollarSign,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuthStore, useUIStore } from '@/lib/store';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -30,6 +36,13 @@ const navItems = [
   { href: '/dashboard/downloads', icon: Download, label: 'Downloads' },
   { href: '/dashboard/security', icon: Shield, label: 'Security' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
+];
+
+const adminNavItems = [
+  { href: '/dashboard/admin', icon: ShieldCheck, label: 'Admin Overview' },
+  { href: '/dashboard/admin/users', icon: Users, label: 'Users' },
+  { href: '/dashboard/admin/signals', icon: Signal, label: 'All Signals' },
+  { href: '/dashboard/admin/revenue', icon: DollarSign, label: 'Revenue' },
 ];
 
 export default function DashboardLayout({
@@ -89,9 +102,9 @@ export default function DashboardLayout({
           </Link>
           <button
             onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-background-elevated text-foreground-muted hover:text-foreground transition hidden lg:block"
+            className="p-2 rounded-lg hover:bg-background-elevated text-foreground-muted hover:text-foreground transition hidden lg:flex items-center justify-center"
           >
-            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
           </button>
         </div>
 
@@ -122,14 +135,61 @@ export default function DashboardLayout({
               </Link>
             );
           })}
+
+          {/* Admin Navigation */}
+          {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+            <>
+              {sidebarOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-6 mb-2 px-4"
+                >
+                  <span className="text-xs font-semibold text-foreground-subtle uppercase tracking-wider">
+                    Admin
+                  </span>
+                </motion.div>
+              )}
+              {!sidebarOpen && <div className="my-4 border-t border-border" />}
+              {adminNavItems.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                      isActive
+                        ? 'bg-accent-purple/10 text-accent-purple'
+                        : 'text-foreground-muted hover:bg-background-elevated hover:text-foreground'
+                    }`}
+                  >
+                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-accent-purple' : ''}`} />
+                    {sidebarOpen && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="font-medium"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         {/* User section at bottom */}
         {sidebarOpen && (
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
             <div className="flex items-center gap-3 p-3 rounded-xl bg-background-elevated">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center overflow-hidden">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-5 h-5 text-white" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{user?.name || 'Trader'}</p>
@@ -157,7 +217,10 @@ export default function DashboardLayout({
 
           <div className="flex-1" />
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
             {/* Notifications */}
             <button className="relative p-2 rounded-lg hover:bg-background-elevated text-foreground-muted hover:text-foreground transition">
               <Bell className="w-5 h-5" />
@@ -170,8 +233,12 @@ export default function DashboardLayout({
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="flex items-center gap-2 p-2 rounded-lg hover:bg-background-elevated transition"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center overflow-hidden">
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-4 h-4 text-white" />
+                  )}
                 </div>
                 <ChevronDown className={`w-4 h-4 text-foreground-muted transition ${userMenuOpen ? 'rotate-180' : ''}`} />
               </button>

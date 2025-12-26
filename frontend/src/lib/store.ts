@@ -16,6 +16,7 @@ export interface User {
   role: string;
   emailVerified: boolean;
   twoFactorEnabled?: boolean;
+  avatar?: string;
 }
 
 export interface Subscription {

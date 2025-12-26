@@ -10,23 +10,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // FinTech Premium Dark Theme
+        // Theme-aware colors using CSS variables
         background: {
-          DEFAULT: '#0a0e17',
-          secondary: '#0f1419',
-          tertiary: '#151c28',
-          elevated: '#1a2332',
+          DEFAULT: 'var(--background)',
+          secondary: 'var(--background-secondary)',
+          tertiary: 'var(--background-tertiary)',
+          elevated: 'var(--background-elevated)',
         },
         foreground: {
-          DEFAULT: '#f1f5f9',
-          muted: '#94a3b8',
-          subtle: '#64748b',
+          DEFAULT: 'var(--foreground)',
+          muted: 'var(--foreground-muted)',
+          subtle: 'var(--foreground-subtle)',
         },
         primary: {
-          DEFAULT: '#0ea5e9',
-          hover: '#0284c7',
-          muted: '#0c4a6e',
+          DEFAULT: 'var(--primary)',
+          hover: 'var(--primary-hover)',
+          muted: 'var(--primary-muted)',
         },
+        border: {
+          DEFAULT: 'var(--border)',
+          muted: 'var(--border-muted)',
+        },
+        // Accent colors remain static (work in both themes)
         accent: {
           green: '#22c55e',
           red: '#ef4444',
@@ -34,15 +39,11 @@ const config: Config = {
           purple: '#a855f7',
           cyan: '#06b6d4',
         },
-        border: {
-          DEFAULT: '#1e293b',
-          muted: '#334155',
-        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
-        display: ['Cal Sans', 'Inter', 'sans-serif'],
+        display: ['Space Grotesk', 'Inter', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',

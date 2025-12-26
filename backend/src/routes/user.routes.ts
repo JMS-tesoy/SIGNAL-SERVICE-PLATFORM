@@ -63,6 +63,7 @@ router.get('/profile', authenticate, asyncHandler(async (req: Request, res: Resp
 const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   phone: z.string().max(20).optional(),
+  avatar: z.string().max(500000).optional(), // Base64 encoded, ~375KB max image
 });
 
 router.put('/profile', authenticate, asyncHandler(async (req: Request, res: Response) => {
@@ -76,6 +77,7 @@ router.put('/profile', authenticate, asyncHandler(async (req: Request, res: Resp
       email: true,
       name: true,
       phone: true,
+      avatar: true,
     },
   });
 

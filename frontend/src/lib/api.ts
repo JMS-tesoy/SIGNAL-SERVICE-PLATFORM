@@ -278,7 +278,7 @@ export const userApi = {
   getProfile: (token: string) =>
     apiFetch<{ user: any }>('/api/users/profile', { token }),
 
-  updateProfile: (token: string, data: { name?: string; phone?: string }) =>
+  updateProfile: (token: string, data: { name?: string; phone?: string; avatar?: string }) =>
     apiFetch('/api/users/profile', {
       method: 'PUT',
       token,
@@ -437,6 +437,142 @@ export const downloadApi = {
   getDownloadUrl: (fileId: string) => `${API_URL}/api/downloads/${fileId}`,
 };
 
+// =============================================================================
+// ADMIN API - Admin-only endpoints
+// =============================================================================
+
+export interface AdminStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalSubscriptions: number;
+  activeSubscriptions: number;
+  totalSignals: number;
+  todaySignals: number;
+  totalRevenue: number;
+  monthlyRevenue: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  status: string;
+  emailVerified: boolean;
+  twoFactorEnabled: boolean;
+  createdAt: string;
+  subscription?: {
+    tier: { name: string; displayName: string };
+    status: string;
+  };
+  _count?: {
+    signals: number;
+    mt5Accounts: number;
+  };
+}
+
+export interface AdminSignal {
+  id: string;
+  symbol: string;
+  type: string;
+  action: string;
+  volume: number;
+  price: number;
+  status: string;
+  createdAt: string;
+  provider: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  _count?: {
+    executions: number;
+  };
+}
+
+export const adminApi = {
+  // Dashboard Stats
+  getStats: (token: string) =>
+    apiFetch<AdminStats>('/api/admin/stats', { token }),
+
+  // User Management
+  getUsers: (token: string, params?: { page?: number; limit?: number; search?: string; status?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', params.page.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    if (params?.search) query.set('search', params.search);
+    if (params?.status) query.set('status', params.status);
+
+    return apiFetch<{ users: AdminUser[]; total: number; page: number; pages: number }>(
+      `/api/admin/users?${query.toString()}`,
+      { token }
+    );
+  },
+
+  getUserDetails: (token: string, userId: string) =>
+    apiFetch<{ user: AdminUser & { signals: any[]; payments: any[] } }>(
+      `/api/admin/users/${userId}`,
+      { token }
+    ),
+
+  updateUserStatus: (token: string, userId: string, status: string) =>
+    apiFetch(`/api/admin/users/${userId}/status`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ status }),
+    }),
+
+  updateUserRole: (token: string, userId: string, role: string) =>
+    apiFetch(`/api/admin/users/${userId}/role`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ role }),
+    }),
+
+  // Signal Management
+  getSignals: (token: string, params?: { page?: number; limit?: number; symbol?: string; status?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', params.page.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    if (params?.symbol) query.set('symbol', params.symbol);
+    if (params?.status) query.set('status', params.status);
+
+    return apiFetch<{ signals: AdminSignal[]; total: number; page: number; pages: number }>(
+      `/api/admin/signals?${query.toString()}`,
+      { token }
+    );
+  },
+
+  // Revenue & Analytics
+  getRevenue: (token: string, months?: number) =>
+    apiFetch<{
+      monthlyRevenue: Record<string, number>;
+      total: number;
+      byTier: Record<string, number>;
+    }>(
+      `/api/admin/revenue${months ? `?months=${months}` : ''}`,
+      { token }
+    ),
+
+  // Subscription Tiers Management
+  getTiers: (token: string) =>
+    apiFetch<{ tiers: any[] }>('/api/admin/tiers', { token }),
+
+  createTier: (token: string, data: any) =>
+    apiFetch('/api/admin/tiers', {
+      method: 'POST',
+      token,
+      body: JSON.stringify(data),
+    }),
+
+  updateTier: (token: string, tierId: string, data: any) =>
+    apiFetch(`/api/admin/tiers/${tierId}`, {
+      method: 'PUT',
+      token,
+      body: JSON.stringify(data),
+    }),
+};
+
 export default {
   auth: authApi,
   otp: otpApi,
@@ -445,4 +581,5 @@ export default {
   user: userApi,
   security: securityApi,
   download: downloadApi,
+  admin: adminApi,
 };

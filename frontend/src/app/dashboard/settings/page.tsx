@@ -13,6 +13,8 @@ import {
   Eye,
   EyeOff,
   LogOut,
+  Camera,
+  X,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { userApi } from '@/lib/api';
@@ -23,6 +25,7 @@ export default function SettingsPage() {
     name: '',
     email: '',
     phone: '',
+    avatar: '',
   });
   const [passwords, setPasswords] = useState({
     current: '',
@@ -34,6 +37,7 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
@@ -52,12 +56,94 @@ export default function SettingsPage() {
           name: result.data.user.name || '',
           email: result.data.user.email,
           phone: result.data.user.phone || '',
+          avatar: result.data.user.avatar || '',
         });
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !accessToken) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setMessage({ type: 'error', text: 'Please select an image file' });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Image must be less than 2MB' });
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      // Convert to base64 for preview and storage
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+
+        // Update local state immediately for preview
+        setProfile(prev => ({ ...prev, avatar: base64 }));
+
+        // Save to backend
+        const result = await userApi.updateProfile(accessToken, {
+          name: profile.name,
+          phone: profile.phone,
+          avatar: base64,
+        } as any);
+
+        if (result.error) {
+          setMessage({ type: 'error', text: result.error });
+          // Revert on error
+          setProfile(prev => ({ ...prev, avatar: '' }));
+        } else {
+          setMessage({ type: 'success', text: 'Avatar updated successfully' });
+          if (user) {
+            setUser({ ...user, avatar: base64 });
+          }
+        }
+        setIsUploadingAvatar(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to upload avatar' });
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!accessToken) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const result = await userApi.updateProfile(accessToken, {
+        name: profile.name,
+        phone: profile.phone,
+        avatar: '',
+      } as any);
+
+      if (result.error) {
+        setMessage({ type: 'error', text: result.error });
+      } else {
+        setProfile(prev => ({ ...prev, avatar: '' }));
+        setMessage({ type: 'success', text: 'Avatar removed' });
+        if (user) {
+          setUser({ ...user, avatar: '' });
+        }
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to remove avatar' });
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -189,6 +275,61 @@ export default function SettingsPage() {
           <User className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
           <span className="truncate">Profile Information</span>
         </h2>
+
+        {/* Avatar Section */}
+        <div className="flex flex-col sm:flex-row items-center gap-6 mb-8 pb-6 border-b border-border">
+          <div className="relative group">
+            <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center">
+              {profile.avatar ? (
+                <img
+                  src={profile.avatar}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User className="w-10 h-10 text-white" />
+              )}
+            </div>
+
+            {/* Upload overlay */}
+            <label className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              {isUploadingAvatar ? (
+                <Loader2 className="w-6 h-6 text-white animate-spin" />
+              ) : (
+                <Camera className="w-6 h-6 text-white" />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+                disabled={isUploadingAvatar}
+              />
+            </label>
+
+            {/* Remove button */}
+            {profile.avatar && (
+              <button
+                type="button"
+                onClick={handleRemoveAvatar}
+                disabled={isUploadingAvatar}
+                className="absolute -top-1 -right-1 w-6 h-6 bg-accent-red rounded-full flex items-center justify-center text-white hover:bg-accent-red/80 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="text-center sm:text-left">
+            <h3 className="font-medium mb-1">Profile Photo</h3>
+            <p className="text-sm text-foreground-muted mb-3">
+              Click on the avatar to upload a new photo
+            </p>
+            <p className="text-xs text-foreground-subtle">
+              JPG, PNG or GIF. Max 2MB.
+            </p>
+          </div>
+        </div>
 
         <form onSubmit={handleSaveProfile} className="space-y-4">
           <div>
