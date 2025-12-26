@@ -35,8 +35,7 @@ yarn-error.log*
 coverage/
 .nyc_output/
 
-# Prisma
-prisma/migrations/
+
 
 # Misc
 *.tsbuildinfo
