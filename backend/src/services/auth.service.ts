@@ -2,7 +2,7 @@
 // AUTHENTICATION SERVICE - JWT & Session Management
 // =============================================================================
 
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../config/database.js';
@@ -84,7 +84,8 @@ export function generateAccessToken(user: Pick<User, 'id' | 'email' | 'role'>): 
     role: user.role,
     type: 'access',
   };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  const options: SignOptions = { expiresIn: JWT_EXPIRES_IN };
+  return jwt.sign(payload, JWT_SECRET, options);
 }
 
 export function generateRefreshToken(user: Pick<User, 'id' | 'email' | 'role'>, rememberMe: boolean = false): string {
@@ -95,14 +96,16 @@ export function generateRefreshToken(user: Pick<User, 'id' | 'email' | 'role'>, 
     type: 'refresh',
   };
   const expiresIn = rememberMe ? REMEMBER_ME_REFRESH_TOKEN_EXPIRES_IN : REFRESH_TOKEN_EXPIRES_IN;
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+  const options: SignOptions = { expiresIn };
+  return jwt.sign(payload, JWT_SECRET, options);
 }
 
 export function generateTempToken(userId: string): string {
+  const options: SignOptions = { expiresIn: '10m' };
   return jwt.sign(
     { userId, type: 'temp' },
     JWT_SECRET,
-    { expiresIn: '10m' }
+    options
   );
 }
 
