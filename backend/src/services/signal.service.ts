@@ -72,7 +72,7 @@ export async function receiveSignal(
         magic: signal.magic || null,
         comment: signal.comment || null,
         status: 'PENDING',
-        expiresAt: new Date(Date.now() + 60 * 1000),
+        expiresAt: new Date(Date.now() + 120 * 1000), // 2 minutes expiry
       },
     });
 
