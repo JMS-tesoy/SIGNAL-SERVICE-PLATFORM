@@ -1,30 +1,38 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { TrendingUp, Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
-import { useAuthStore } from '@/lib/store';
-import { authApi } from '@/lib/api';
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import {
+  TrendingUp,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
+import { useAuthStore } from "@/lib/store";
+import { authApi } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
   const { setUser, setTokens } = useAuthStore();
-  
-  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+
+  const [step, setStep] = useState<"credentials" | "otp">("credentials");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [tempToken, setTempToken] = useState('');
-  const [twoFactorMethod, setTwoFactorMethod] = useState('');
-  const [error, setError] = useState('');
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [tempToken, setTempToken] = useState("");
+  const [twoFactorMethod, setTwoFactorMethod] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     try {
@@ -36,16 +44,16 @@ export default function LoginPage() {
       }
 
       if (result.data?.requiresTwoFactor) {
-        setTempToken(result.data.tempToken || '');
-        setTwoFactorMethod(result.data.twoFactorMethod || 'EMAIL');
-        setStep('otp');
+        setTempToken(result.data.tempToken || "");
+        setTwoFactorMethod(result.data.twoFactorMethod || "EMAIL");
+        setStep("otp");
       } else if (result.data?.accessToken) {
         setUser(result.data.user);
         setTokens(result.data.accessToken, result.data.refreshToken!);
-        router.push('/dashboard');
+        router.push("/dashboard");
       }
     } catch (err) {
-      setError('Login failed. Please try again.');
+      setError("Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +61,7 @@ export default function LoginPage() {
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
-    
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -66,7 +74,7 @@ export default function LoginPage() {
   };
 
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
       const prevInput = document.getElementById(`otp-${index - 1}`);
       prevInput?.focus();
     }
@@ -74,12 +82,12 @@ export default function LoginPage() {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
-    const code = otp.join('');
+    const code = otp.join("");
     if (code.length !== 6) {
-      setError('Please enter all 6 digits');
+      setError("Please enter all 6 digits");
       setIsLoading(false);
       return;
     }
@@ -89,17 +97,17 @@ export default function LoginPage() {
 
       if (result.error) {
         setError(result.error);
-        setOtp(['', '', '', '', '', '']);
+        setOtp(["", "", "", "", "", ""]);
         return;
       }
 
       if (result.data?.accessToken) {
         setUser(result.data.user);
         setTokens(result.data.accessToken, result.data.refreshToken);
-        router.push('/dashboard');
+        router.push("/dashboard");
       }
     } catch (err) {
-      setError('Verification failed. Please try again.');
+      setError("Verification failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -118,13 +126,17 @@ export default function LoginPage() {
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center">
             <TrendingUp className="w-7 h-7 text-white" />
           </div>
-          <span className="text-2xl font-bold text-gradient">SignalService</span>
+          <span className="text-2xl font-bold text-gradient">
+            SignalService
+          </span>
         </Link>
 
         <div className="card-elevated">
-          {step === 'credentials' ? (
+          {step === "credentials" ? (
             <>
-              <h1 className="text-2xl font-bold text-center mb-2">Welcome Back</h1>
+              <h1 className="text-2xl font-bold text-center mb-2">
+                Welcome Back
+              </h1>
               <p className="text-foreground-muted text-center mb-8">
                 Sign in to access your trading dashboard
               </p>
@@ -136,10 +148,16 @@ export default function LoginPage() {
                   </div>
                 )}
 
+                {/* --- EMAIL INPUT SECTION --- */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Email</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Email
+                  </label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-subtle" />
+                    {/* Only show Mail icon if email is empty */}
+                    {!email && (
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-subtle" />
+                    )}
                     <input
                       type="email"
                       value={email}
@@ -151,12 +169,18 @@ export default function LoginPage() {
                   </div>
                 </div>
 
+                {/* --- PASSWORD INPUT SECTION --- */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Password</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Password
+                  </label>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-subtle" />
+                    {/* Only show Lock icon if password is empty */}
+                    {!password && (
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-subtle" />
+                    )}
                     <input
-                      type={showPassword ? 'text' : 'password'}
+                      type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="input pl-12 pr-12"
@@ -168,17 +192,29 @@ export default function LoginPage() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground-subtle hover:text-foreground"
                     >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
                     </button>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded border-border bg-background-secondary" />
-                    <span className="text-sm text-foreground-muted">Remember me</span>
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-border bg-background-secondary text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm text-foreground-muted">
+                      Remember me
+                    </span>
                   </label>
-                  <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-primary hover:underline"
+                  >
                     Forgot password?
                   </Link>
                 </div>
@@ -201,9 +237,12 @@ export default function LoginPage() {
             </>
           ) : (
             <>
-              <h1 className="text-2xl font-bold text-center mb-2">Two-Factor Authentication</h1>
+              <h1 className="text-2xl font-bold text-center mb-2">
+                Two-Factor Authentication
+              </h1>
               <p className="text-foreground-muted text-center mb-8">
-                Enter the 6-digit code from your {twoFactorMethod === 'TOTP' ? 'authenticator app' : 'email'}
+                Enter the 6-digit code from your{" "}
+                {twoFactorMethod === "TOTP" ? "authenticator app" : "email"}
               </p>
 
               <form onSubmit={handleVerifyOtp} className="space-y-6">
@@ -222,7 +261,9 @@ export default function LoginPage() {
                       inputMode="numeric"
                       maxLength={1}
                       value={digit}
-                      onChange={(e) => handleOtpChange(i, e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) =>
+                        handleOtpChange(i, e.target.value.replace(/\D/g, ""))
+                      }
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
                       className="otp-input"
                       autoFocus={i === 0}
@@ -248,9 +289,9 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setStep('credentials');
-                    setOtp(['', '', '', '', '', '']);
-                    setError('');
+                    setStep("credentials");
+                    setOtp(["", "", "", "", "", ""]);
+                    setError("");
                   }}
                   className="w-full text-foreground-muted hover:text-foreground text-sm"
                 >
@@ -262,8 +303,11 @@ export default function LoginPage() {
 
           <div className="mt-8 pt-6 border-t border-border text-center">
             <p className="text-foreground-muted">
-              Don't have an account?{' '}
-              <Link href="/register" className="text-primary hover:underline font-medium">
+              Don't have an account?{" "}
+              <Link
+                href="/register"
+                className="text-primary hover:underline font-medium"
+              >
                 Sign up
               </Link>
             </p>
