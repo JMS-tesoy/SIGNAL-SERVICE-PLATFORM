@@ -28,7 +28,9 @@ function markEventProcessed(eventId: string): boolean {
   if (processedEvents.size >= MAX_PROCESSED_EVENTS) {
     const iterator = processedEvents.values();
     const oldest = iterator.next().value;
-    processedEvents.delete(oldest);
+    if (oldest) {
+      processedEvents.delete(oldest);
+    }
   }
 
   processedEvents.add(eventId);

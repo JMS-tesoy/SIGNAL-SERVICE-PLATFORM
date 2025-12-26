@@ -84,8 +84,7 @@ export function generateAccessToken(user: Pick<User, 'id' | 'email' | 'role'>): 
     role: user.role,
     type: 'access',
   };
-  const options: SignOptions = { expiresIn: JWT_EXPIRES_IN };
-  return jwt.sign(payload, JWT_SECRET, options);
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as SignOptions);
 }
 
 export function generateRefreshToken(user: Pick<User, 'id' | 'email' | 'role'>, rememberMe: boolean = false): string {
@@ -96,8 +95,7 @@ export function generateRefreshToken(user: Pick<User, 'id' | 'email' | 'role'>, 
     type: 'refresh',
   };
   const expiresIn = rememberMe ? REMEMBER_ME_REFRESH_TOKEN_EXPIRES_IN : REFRESH_TOKEN_EXPIRES_IN;
-  const options: SignOptions = { expiresIn };
-  return jwt.sign(payload, JWT_SECRET, options);
+  return jwt.sign(payload, JWT_SECRET, { expiresIn } as SignOptions);
 }
 
 export function generateTempToken(userId: string): string {
