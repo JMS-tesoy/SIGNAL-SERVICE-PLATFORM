@@ -25,8 +25,8 @@ interface PerformanceChartProps {
   isLoading?: boolean;
 }
 
-// Generate mock data for demonstration
-const generateMockData = (days: number): DataPoint[] => {
+// Generate empty data for display when no real data exists
+const generateEmptyData = (days: number): DataPoint[] => {
   const data: DataPoint[] = [];
   const now = new Date();
 
@@ -34,15 +34,11 @@ const generateMockData = (days: number): DataPoint[] => {
     const date = new Date(now);
     date.setDate(date.getDate() - i);
 
-    const signals = Math.floor(Math.random() * 30) + 10;
-    const executed = Math.floor(signals * (0.7 + Math.random() * 0.25));
-    const failed = signals - executed;
-
     data.push({
       date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      signals,
-      executed,
-      failed,
+      signals: 0,
+      executed: 0,
+      failed: 0,
     });
   }
 
@@ -87,7 +83,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function PerformanceChart({ data, isLoading }: PerformanceChartProps) {
   const [period, setPeriod] = useState(30);
 
-  const chartData = data || generateMockData(period);
+  const chartData = data && data.length > 0 ? data : generateEmptyData(period);
 
   // Calculate totals
   const totalSignals = chartData.reduce((sum, d) => sum + d.signals, 0);

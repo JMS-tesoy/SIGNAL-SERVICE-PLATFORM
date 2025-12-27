@@ -18,15 +18,8 @@ interface SymbolBarChartProps {
   isLoading?: boolean;
 }
 
-// Mock data for demonstration
-const mockData: Record<string, number> = {
-  'EURUSD': 45,
-  'GBPUSD': 38,
-  'USDJPY': 32,
-  'XAUUSD': 28,
-  'BTCUSD': 22,
-  'ETHUSD': 15,
-};
+// Empty data when no real data exists
+const emptyData: Record<string, number> = {};
 
 const GRADIENT_COLORS = [
   { start: '#0ea5e9', end: '#06b6d4' },
@@ -55,14 +48,15 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-export function SymbolBarChart({ data = mockData, isLoading }: SymbolBarChartProps) {
+export function SymbolBarChart({ data = emptyData, isLoading }: SymbolBarChartProps) {
   // Transform data object to array and sort by value
   const chartData = Object.entries(data)
     .map(([symbol, count]) => ({ symbol, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
 
-  const maxValue = Math.max(...chartData.map(d => d.count));
+  const hasData = chartData.length > 0;
+  const maxValue = hasData ? Math.max(...chartData.map(d => d.count)) : 10;
 
   if (isLoading) {
     return (
@@ -85,11 +79,22 @@ export function SymbolBarChart({ data = mockData, isLoading }: SymbolBarChartPro
         </div>
         <div>
           <h3 className="font-display text-lg font-semibold">Signals by Symbol</h3>
-          <p className="text-sm text-foreground-muted">Top {chartData.length} trading pairs</p>
+          <p className="text-sm text-foreground-muted">Top {hasData ? chartData.length : 0} trading pairs</p>
         </div>
       </div>
 
+      {/* Empty state */}
+      {!hasData && (
+        <div className="h-[240px] flex items-center justify-center text-foreground-muted">
+          <div className="text-center">
+            <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>No signal data yet</p>
+          </div>
+        </div>
+      )}
+
       {/* Chart */}
+      {hasData && (
       <div className="h-[240px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -153,6 +158,7 @@ export function SymbolBarChart({ data = mockData, isLoading }: SymbolBarChartPro
           </BarChart>
         </ResponsiveContainer>
       </div>
+      )}
     </motion.div>
   );
 }
