@@ -11,13 +11,12 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, Calendar } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 
 interface DataPoint {
   date: string;
-  signals: number;
-  executed: number;
-  failed: number;
+  growth: number;
+  drawdown: number;
 }
 
 interface PerformanceChartProps {
@@ -36,9 +35,8 @@ const generateEmptyData = (days: number): DataPoint[] => {
 
     data.push({
       date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      signals: 0,
-      executed: 0,
-      failed: 0,
+      growth: 0,
+      drawdown: 0,
     });
   }
 
@@ -62,16 +60,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="text-foreground-muted text-sm mb-2">{label}</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-primary" />
-            <span className="text-sm">Total: <span className="font-semibold text-foreground">{payload[0]?.value}</span></span>
-          </div>
-          <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-accent-green" />
-            <span className="text-sm">Executed: <span className="font-semibold text-accent-green">{payload[1]?.value}</span></span>
+            <span className="text-sm">Growth: <span className="font-semibold text-accent-green">{payload[0]?.value?.toFixed(2)}%</span></span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-accent-red" />
-            <span className="text-sm">Failed: <span className="font-semibold text-accent-red">{payload[2]?.value}</span></span>
+            <span className="text-sm">Drawdown: <span className="font-semibold text-accent-red">{payload[1]?.value?.toFixed(2)}%</span></span>
           </div>
         </div>
       </motion.div>
@@ -81,14 +75,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function PerformanceChart({ data, isLoading }: PerformanceChartProps) {
-  const [period, setPeriod] = useState(30);
+  const [period, setPeriod] = useState(90);
 
   const chartData = data && data.length > 0 ? data : generateEmptyData(period);
 
   // Calculate totals
-  const totalSignals = chartData.reduce((sum, d) => sum + d.signals, 0);
-  const totalExecuted = chartData.reduce((sum, d) => sum + d.executed, 0);
-  const successRate = totalSignals > 0 ? ((totalExecuted / totalSignals) * 100).toFixed(1) : '0';
+  const totalGrowth = chartData.length > 0 ? chartData[chartData.length - 1]?.growth || 0 : 0;
+  const maxDrawdown = Math.min(...chartData.map(d => d.drawdown));
 
   if (isLoading) {
     return (
@@ -113,7 +106,7 @@ export function PerformanceChart({ data, isLoading }: PerformanceChartProps) {
           <div>
             <h3 className="font-display text-lg font-semibold">Signal Performance</h3>
             <p className="text-sm text-foreground-muted">
-              {totalSignals} signals • {successRate}% success rate
+              {totalGrowth >= 0 ? '+' : ''}{totalGrowth.toFixed(2)}% growth • {maxDrawdown.toFixed(2)}% max drawdown
             </p>
           </div>
         </div>
@@ -144,15 +137,11 @@ export function PerformanceChart({ data, isLoading }: PerformanceChartProps) {
             margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
           >
             <defs>
-              <linearGradient id="signalsGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="executedGradient" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="growthGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
                 <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
               </linearGradient>
-              <linearGradient id="failedGradient" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="drawdownGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
                 <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
               </linearGradient>
@@ -175,31 +164,24 @@ export function PerformanceChart({ data, isLoading }: PerformanceChartProps) {
               tickLine={false}
               tick={{ fill: 'var(--foreground-subtle)', fontSize: 12 }}
               dx={-10}
+              tickFormatter={(value) => `${value}%`}
             />
             <Tooltip content={<CustomTooltip />} />
             <Area
               type="monotone"
-              dataKey="signals"
-              stroke="#0ea5e9"
+              dataKey="growth"
+              stroke="#22c55e"
               strokeWidth={2}
-              fill="url(#signalsGradient)"
+              fill="url(#growthGradient)"
               animationDuration={1000}
             />
             <Area
               type="monotone"
-              dataKey="executed"
-              stroke="#22c55e"
-              strokeWidth={2}
-              fill="url(#executedGradient)"
-              animationDuration={1200}
-            />
-            <Area
-              type="monotone"
-              dataKey="failed"
+              dataKey="drawdown"
               stroke="#ef4444"
               strokeWidth={2}
-              fill="url(#failedGradient)"
-              animationDuration={1400}
+              fill="url(#drawdownGradient)"
+              animationDuration={1200}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -208,16 +190,12 @@ export function PerformanceChart({ data, isLoading }: PerformanceChartProps) {
       {/* Legend */}
       <div className="flex items-center justify-center gap-6 mt-4">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-primary" />
-          <span className="text-sm text-foreground-muted">Total Signals</span>
-        </div>
-        <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-accent-green" />
-          <span className="text-sm text-foreground-muted">Executed</span>
+          <span className="text-sm text-foreground-muted">Growth</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-accent-red" />
-          <span className="text-sm text-foreground-muted">Failed</span>
+          <span className="text-sm text-foreground-muted">Drawdown</span>
         </div>
       </div>
     </motion.div>
