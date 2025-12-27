@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Laptop,
   Plus,
@@ -12,14 +12,23 @@ import {
   CheckCircle,
   XCircle,
   X,
-} from 'lucide-react';
-import { useAuthStore } from '@/lib/store';
-import { userApi } from '@/lib/api';
+  Key, // Added
+  Copy, // Added
+} from "lucide-react";
+import { useAuthStore } from "@/lib/store";
+import { userApi } from "@/lib/api";
+
+// --- CONFIGURATION ---
+// We need this for the direct API call to generate keys
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:3001";
 
 interface MT5Account {
   id: string;
   accountId: string;
-  accountType: 'MASTER' | 'SLAVE';
+  accountType: "MASTER" | "SLAVE";
   broker: string | null;
   server: string | null;
   isConnected: boolean;
@@ -34,13 +43,20 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<MT5Account[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // New State for API Key Display
+  const [generatedKey, setGeneratedKey] = useState<{
+    id: string;
+    key: string;
+  } | null>(null);
+
   const [newAccount, setNewAccount] = useState({
-    accountId: '',
-    accountType: 'SLAVE' as 'MASTER' | 'SLAVE',
-    broker: '',
-    server: '',
+    accountId: "",
+    accountType: "SLAVE" as "MASTER" | "SLAVE",
+    broker: "",
+    server: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchAccounts = async () => {
@@ -53,7 +69,7 @@ export default function AccountsPage() {
         setAccounts(result.data.accounts);
       }
     } catch (error) {
-      console.error('Failed to fetch accounts:', error);
+      console.error("Failed to fetch accounts:", error);
     } finally {
       setIsLoading(false);
     }
@@ -66,9 +82,9 @@ export default function AccountsPage() {
   const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accessToken) return;
-    
-    setActionLoading('add');
-    setError('');
+
+    setActionLoading("add");
+    setError("");
 
     try {
       const result = await userApi.addMT5Account(accessToken, {
@@ -82,11 +98,16 @@ export default function AccountsPage() {
         setError(result.error);
       } else {
         setShowAddModal(false);
-        setNewAccount({ accountId: '', accountType: 'SLAVE', broker: '', server: '' });
+        setNewAccount({
+          accountId: "",
+          accountType: "SLAVE",
+          broker: "",
+          server: "",
+        });
         fetchAccounts();
       }
     } catch (err) {
-      setError('Failed to add account');
+      setError("Failed to add account");
     } finally {
       setActionLoading(null);
     }
@@ -94,24 +115,55 @@ export default function AccountsPage() {
 
   const handleDeleteAccount = async (accountId: string) => {
     if (!accessToken) return;
-    if (!confirm('Are you sure you want to remove this account?')) return;
+    if (!confirm("Are you sure you want to remove this account?")) return;
 
     setActionLoading(accountId);
 
     try {
       const result = await userApi.deleteMT5Account(accessToken, accountId);
       if (!result.error) {
-        setAccounts(accounts.filter(a => a.id !== accountId));
+        setAccounts(accounts.filter((a) => a.id !== accountId));
       }
     } catch (err) {
-      console.error('Failed to delete account:', err);
+      console.error("Failed to delete account:", err);
     } finally {
       setActionLoading(null);
     }
   };
 
-  const masterAccounts = accounts.filter(a => a.accountType === 'MASTER');
-  const slaveAccounts = accounts.filter(a => a.accountType === 'SLAVE');
+  // --- NEW FUNCTION: Generate API Key ---
+  const handleGenerateKey = async (accountUuid: string) => {
+    if (!accessToken) return;
+    // Clear any previous key
+    setGeneratedKey(null);
+    setActionLoading(accountUuid);
+
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/user/mt5-accounts/${accountUuid}/api-key`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed to generate key");
+
+      const data = await res.json();
+      setGeneratedKey({ id: accountUuid, key: data.apiKey });
+    } catch (err) {
+      console.error("Could not generate API Key", err);
+      alert("Failed to generate API Key. Please try again.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const masterAccounts = accounts.filter((a) => a.accountType === "MASTER");
+  const slaveAccounts = accounts.filter((a) => a.accountType === "SLAVE");
 
   return (
     <div className="space-y-6">
@@ -128,7 +180,9 @@ export default function AccountsPage() {
             disabled={isLoading}
             className="btn-secondary flex items-center gap-2"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+            />
             Refresh
           </button>
           <button
@@ -189,7 +243,11 @@ export default function AccountsPage() {
                     key={account.id}
                     account={account}
                     onDelete={() => handleDeleteAccount(account.id)}
-                    isDeleting={actionLoading === account.id}
+                    onGenerateKey={() => handleGenerateKey(account.id)} // Pass function
+                    generatedKey={
+                      generatedKey?.id === account.id ? generatedKey.key : null
+                    } // Pass key if matches
+                    isActionLoading={actionLoading === account.id}
                   />
                 ))}
               </div>
@@ -209,7 +267,11 @@ export default function AccountsPage() {
                     key={account.id}
                     account={account}
                     onDelete={() => handleDeleteAccount(account.id)}
-                    isDeleting={actionLoading === account.id}
+                    onGenerateKey={() => handleGenerateKey(account.id)} // Pass function
+                    generatedKey={
+                      generatedKey?.id === account.id ? generatedKey.key : null
+                    } // Pass key if matches
+                    isActionLoading={actionLoading === account.id}
                   />
                 ))}
               </div>
@@ -254,11 +316,18 @@ export default function AccountsPage() {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Account ID *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Account ID *
+                  </label>
                   <input
                     type="text"
                     value={newAccount.accountId}
-                    onChange={(e) => setNewAccount({ ...newAccount, accountId: e.target.value })}
+                    onChange={(e) =>
+                      setNewAccount({
+                        ...newAccount,
+                        accountId: e.target.value,
+                      })
+                    }
                     className="input"
                     placeholder="e.g., 12345678"
                     required
@@ -266,10 +335,17 @@ export default function AccountsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Account Type *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Account Type *
+                  </label>
                   <select
                     value={newAccount.accountType}
-                    onChange={(e) => setNewAccount({ ...newAccount, accountType: e.target.value as 'MASTER' | 'SLAVE' })}
+                    onChange={(e) =>
+                      setNewAccount({
+                        ...newAccount,
+                        accountType: e.target.value as "MASTER" | "SLAVE",
+                      })
+                    }
                     className="input"
                   >
                     <option value="SLAVE">Slave (Signal Receiver)</option>
@@ -278,22 +354,30 @@ export default function AccountsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Broker (Optional)</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Broker (Optional)
+                  </label>
                   <input
                     type="text"
                     value={newAccount.broker}
-                    onChange={(e) => setNewAccount({ ...newAccount, broker: e.target.value })}
+                    onChange={(e) =>
+                      setNewAccount({ ...newAccount, broker: e.target.value })
+                    }
                     className="input"
                     placeholder="e.g., IC Markets"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Server (Optional)</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Server (Optional)
+                  </label>
                   <input
                     type="text"
                     value={newAccount.server}
-                    onChange={(e) => setNewAccount({ ...newAccount, server: e.target.value })}
+                    onChange={(e) =>
+                      setNewAccount({ ...newAccount, server: e.target.value })
+                    }
                     className="input"
                     placeholder="e.g., ICMarkets-Demo"
                   />
@@ -309,13 +393,13 @@ export default function AccountsPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={actionLoading === 'add'}
+                    disabled={actionLoading === "add"}
                     className="flex-1 btn-primary flex items-center justify-center gap-2"
                   >
-                    {actionLoading === 'add' ? (
+                    {actionLoading === "add" ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      'Add Account'
+                      "Add Account"
                     )}
                   </button>
                 </div>
@@ -331,87 +415,166 @@ export default function AccountsPage() {
 function AccountCard({
   account,
   onDelete,
-  isDeleting,
+  onGenerateKey,
+  generatedKey,
+  isActionLoading,
 }: {
   account: MT5Account;
   onDelete: () => void;
-  isDeleting: boolean;
+  onGenerateKey: () => void;
+  generatedKey: string | null;
+  isActionLoading: boolean;
 }) {
   const timeSinceHeartbeat = account.lastHeartbeat
-    ? Math.round((Date.now() - new Date(account.lastHeartbeat).getTime()) / 1000 / 60)
+    ? Math.round(
+        (Date.now() - new Date(account.lastHeartbeat).getTime()) / 1000 / 60
+      )
     : null;
 
   return (
     <motion.div
       layout
-      className="card flex items-center justify-between"
+      className="card flex flex-col gap-4" // Changed to flex-col to accommodate the key box
     >
-      <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-          account.isConnected ? 'bg-accent-green/10' : 'bg-foreground-subtle/10'
-        }`}>
-          <Laptop className={`w-6 h-6 ${account.isConnected ? 'text-accent-green' : 'text-foreground-subtle'}`} />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">{account.accountId}</span>
-            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-              account.accountType === 'MASTER' 
-                ? 'bg-accent-purple/10 text-accent-purple' 
-                : 'bg-primary/10 text-primary'
-            }`}>
-              {account.accountType}
-            </span>
+      {/* Top Row: Info and Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div
+            className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+              account.isConnected
+                ? "bg-accent-green/10"
+                : "bg-foreground-subtle/10"
+            }`}
+          >
+            <Laptop
+              className={`w-6 h-6 ${
+                account.isConnected
+                  ? "text-accent-green"
+                  : "text-foreground-subtle"
+              }`}
+            />
           </div>
-          <div className="text-sm text-foreground-muted">
-            {account.broker || 'Unknown broker'} • {account.server || 'Unknown server'}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-6">
-        {/* Balance & Equity */}
-        {account.balance !== null && (
-          <div className="text-right">
-            <div className="font-mono">${account.balance.toFixed(2)}</div>
-            <div className={`text-sm ${(account.profit || 0) >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
-              {(account.profit || 0) >= 0 ? '+' : ''}{account.profit?.toFixed(2) || '0.00'}
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">{account.accountId}</span>
+              <span
+                className={`px-2 py-0.5 rounded text-xs font-medium ${
+                  account.accountType === "MASTER"
+                    ? "bg-accent-purple/10 text-accent-purple"
+                    : "bg-primary/10 text-primary"
+                }`}
+              >
+                {account.accountType}
+              </span>
+            </div>
+            <div className="text-sm text-foreground-muted">
+              {account.broker || "Unknown broker"} •{" "}
+              {account.server || "Unknown server"}
             </div>
           </div>
-        )}
-
-        {/* Connection Status */}
-        <div className="flex items-center gap-2">
-          {account.isConnected ? (
-            <>
-              <CheckCircle className="w-5 h-5 text-accent-green" />
-              <span className="text-sm text-accent-green">Connected</span>
-            </>
-          ) : (
-            <>
-              <XCircle className="w-5 h-5 text-foreground-subtle" />
-              <span className="text-sm text-foreground-muted">
-                {timeSinceHeartbeat !== null
-                  ? `Offline ${timeSinceHeartbeat}m ago`
-                  : 'Never connected'}
-              </span>
-            </>
-          )}
         </div>
 
-        {/* Delete Button */}
-        <button
-          onClick={onDelete}
-          disabled={isDeleting}
-          className="p-2 hover:bg-accent-red/10 rounded-lg text-foreground-muted hover:text-accent-red transition"
-        >
-          {isDeleting ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Trash2 className="w-5 h-5" />
+        <div className="flex items-center gap-6">
+          {/* Balance & Equity */}
+          {account.balance !== null && (
+            <div className="text-right hidden sm:block">
+              <div className="font-mono">${account.balance.toFixed(2)}</div>
+              <div
+                className={`text-sm ${
+                  (account.profit || 0) >= 0
+                    ? "text-accent-green"
+                    : "text-accent-red"
+                }`}
+              >
+                {(account.profit || 0) >= 0 ? "+" : ""}
+                {account.profit?.toFixed(2) || "0.00"}
+              </div>
+            </div>
           )}
-        </button>
+
+          {/* Connection Status */}
+          <div className="flex items-center gap-2 hidden md:flex">
+            {account.isConnected ? (
+              <>
+                <CheckCircle className="w-5 h-5 text-accent-green" />
+                <span className="text-sm text-accent-green">Connected</span>
+              </>
+            ) : (
+              <>
+                <XCircle className="w-5 h-5 text-foreground-subtle" />
+                <span className="text-sm text-foreground-muted">
+                  {timeSinceHeartbeat !== null
+                    ? `Offline ${timeSinceHeartbeat}m`
+                    : "Never connected"}
+                </span>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Generate Key Button */}
+            <button
+              onClick={onGenerateKey}
+              title="Generate API Key"
+              disabled={isActionLoading}
+              className="p-2 hover:bg-primary/10 rounded-lg text-foreground-muted hover:text-primary transition"
+            >
+              <Key className="w-5 h-5" />
+            </button>
+
+            {/* Delete Button */}
+            <button
+              onClick={onDelete}
+              title="Delete Account"
+              disabled={isActionLoading}
+              className="p-2 hover:bg-accent-red/10 rounded-lg text-foreground-muted hover:text-accent-red transition"
+            >
+              {isActionLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Trash2 className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Bottom Row: API Key Display (Conditional) */}
+      <AnimatePresence>
+        {generatedKey && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-yellow-900/20 border border-yellow-700/50 p-4 rounded-lg mt-2">
+              <div className="flex items-start gap-2 text-yellow-500 mb-2">
+                <AlertCircle className="w-4 h-4 mt-0.5" />
+                <p className="text-xs font-bold">
+                  COPY KEY NOW - IT WILL NOT BE SHOWN AGAIN
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={generatedKey}
+                  className="flex-1 bg-black/40 border border-yellow-800/50 text-yellow-200 font-mono text-sm px-3 py-2 rounded focus:outline-none focus:border-yellow-600"
+                  onClick={(e) => e.currentTarget.select()}
+                />
+                <button
+                  onClick={() => navigator.clipboard.writeText(generatedKey)}
+                  className="bg-yellow-800/50 hover:bg-yellow-700/50 text-yellow-100 px-4 rounded text-sm transition flex items-center gap-2 border border-yellow-700/50"
+                >
+                  <Copy className="w-4 h-4" />
+                  Copy
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
