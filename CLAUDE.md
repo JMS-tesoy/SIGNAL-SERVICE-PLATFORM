@@ -1,10 +1,6 @@
 # CLAUDE.md
 
-This file provides authoritative guidance to Claude Code (claude.ai/code)
-when working with code in this repository.
-
-It enforces session continuity, non-drift behavior, and deterministic
-resumption after usage or rate-limit resets.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ======================================================================
 
@@ -46,6 +42,35 @@ If the user says:
 
 Claude MUST immediately continue from "Next Actions"
 without re-planning or re-explaining.
+
+======================================================================
+
+TECH STACK
+
+Backend:
+- Node.js + Express (ES modules)
+- Prisma ORM + PostgreSQL
+- JWT auth with bcryptjs
+- Stripe for payments
+- Resend for email, Twilio for SMS
+- node-cron for scheduled jobs
+- zod for validation
+
+Frontend:
+- Next.js 16 + React 18
+- Zustand for state management
+- Tailwind CSS + Radix UI components
+- Recharts for analytics
+- Framer Motion for animations
+- react-hook-form + zod validation
+
+======================================================================
+
+PRODUCTION URLS
+
+- Frontend: https://signal-service-frontend-production.up.railway.app
+- Backend API: https://signal-service-api-production.up.railway.app
+- Admin user: admin@signalservice.com
 
 ======================================================================
 
@@ -194,6 +219,13 @@ Frontend State:
 - JWT persisted in localStorage
 - API client auto-injects Bearer token
 
+MT5 EA Integration:
+
+- SignalSender EA: MASTER terminal sends signals via POST /api/signals
+- SignalReceiver EA: SLAVE terminal polls GET /api/signals/pending
+- EAs authenticate via JWT Bearer token
+- See docs/EA-CONFIGURATION.md for setup guide
+
 ======================================================================
 
 DEVELOPMENT COMMANDS
@@ -225,18 +257,16 @@ ENVIRONMENT VARIABLES
 Backend (.env):
 
 - DATABASE_URL
-- JWT_SECRET
-- JWT_EXPIRES_IN
-- REFRESH_TOKEN_EXPIRES_IN
-- SMTP\_\*
-- TWILIO\_\*
-- STRIPE\_\*
-- PORT
-- FRONTEND_URL
+- JWT_SECRET, JWT_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN
+- RESEND_API_KEY, EMAIL_FROM (email via Resend)
+- TWILIO_* (SMS)
+- STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PUBLISHABLE_KEY
+- PORT, FRONTEND_URL, CORS_ORIGINS
 
 Frontend (.env.local):
 
 - NEXT_PUBLIC_API_URL
+- NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 
 ======================================================================
 

@@ -118,6 +118,9 @@ model MT5Account {
   broker        String?
   server        String?
 
+  // API Key for EA authentication (long-lived, never expires)
+  apiKey        String?  @unique
+
   // Connection status
   isConnected   Boolean  @default(false)
   lastHeartbeat DateTime?
@@ -138,6 +141,7 @@ model MT5Account {
 
   @@unique([userId, accountId])
   @@index([accountId])
+  @@index([apiKey])
 }
 
 // ============================================================================

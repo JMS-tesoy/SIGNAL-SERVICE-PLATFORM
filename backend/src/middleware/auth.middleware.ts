@@ -16,8 +16,54 @@ declare global {
         role: string;
       };
       accountId?: string;
+      mt5Account?: {
+        id: string;
+        accountId: string;
+        accountType: string;
+        userId: string;
+      };
     }
   }
+}
+
+// =============================================================================
+// API KEY AUTHENTICATION (for MT5 EAs)
+// =============================================================================
+
+async function authenticateWithApiKey(apiKey: string): Promise<{
+  user: { id: string; email: string; role: string };
+  mt5Account: { id: string; accountId: string; accountType: string; userId: string };
+} | null> {
+  const mt5Account = await prisma.mT5Account.findUnique({
+    where: { apiKey },
+    include: {
+      user: {
+        select: { id: true, email: true, role: true, status: true },
+      },
+    },
+  });
+
+  if (!mt5Account || !mt5Account.user) {
+    return null;
+  }
+
+  if (mt5Account.user.status === 'BANNED' || mt5Account.user.status === 'SUSPENDED') {
+    return null;
+  }
+
+  return {
+    user: {
+      id: mt5Account.user.id,
+      email: mt5Account.user.email,
+      role: mt5Account.user.role,
+    },
+    mt5Account: {
+      id: mt5Account.id,
+      accountId: mt5Account.accountId,
+      accountType: mt5Account.accountType,
+      userId: mt5Account.userId,
+    },
+  };
 }
 
 // =============================================================================
@@ -27,7 +73,21 @@ declare global {
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
+    const apiKey = req.headers['x-api-key'] as string;
 
+    // Try API key authentication first (for MT5 EAs)
+    if (apiKey) {
+      const result = await authenticateWithApiKey(apiKey);
+      if (result) {
+        req.user = result.user;
+        req.mt5Account = result.mt5Account;
+        req.accountId = result.mt5Account.accountId;
+        return next();
+      }
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+
+    // Fall back to JWT authentication
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'No token provided' });
     }

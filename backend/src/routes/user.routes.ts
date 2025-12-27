@@ -4,6 +4,7 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import { hashPassword, comparePassword } from '../services/auth.service.js';
@@ -211,6 +212,62 @@ router.get('/mt5-accounts', authenticate, asyncHandler(async (req: Request, res:
       profit: a.profit ? Number(a.profit) : null,
     })),
   });
+}));
+
+// =============================================================================
+// GENERATE API KEY FOR MT5 ACCOUNT
+// =============================================================================
+
+router.post('/mt5-accounts/:accountId/api-key', authenticate, asyncHandler(async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+
+  const account = await prisma.mT5Account.findFirst({
+    where: { id: accountId, userId: req.user!.id },
+  });
+
+  if (!account) {
+    return res.status(404).json({ error: 'Account not found' });
+  }
+
+  // Generate a secure API key (32 bytes = 64 hex chars)
+  const apiKey = `mt5_${crypto.randomBytes(32).toString('hex')}`;
+
+  await prisma.mT5Account.update({
+    where: { id: accountId },
+    data: { apiKey },
+  });
+
+  res.json({
+    apiKey,
+    message: 'API key generated. Store this securely - it cannot be retrieved later.',
+    usage: {
+      header: 'X-API-Key',
+      example: `curl -H "X-API-Key: ${apiKey}" https://api.example.com/api/signals`,
+    },
+  });
+}));
+
+// =============================================================================
+// REVOKE API KEY FOR MT5 ACCOUNT
+// =============================================================================
+
+router.delete('/mt5-accounts/:accountId/api-key', authenticate, asyncHandler(async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+
+  const account = await prisma.mT5Account.findFirst({
+    where: { id: accountId, userId: req.user!.id },
+  });
+
+  if (!account) {
+    return res.status(404).json({ error: 'Account not found' });
+  }
+
+  await prisma.mT5Account.update({
+    where: { id: accountId },
+    data: { apiKey: null },
+  });
+
+  res.json({ message: 'API key revoked' });
 }));
 
 // =============================================================================
