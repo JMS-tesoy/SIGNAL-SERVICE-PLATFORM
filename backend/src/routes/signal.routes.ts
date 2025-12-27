@@ -10,6 +10,7 @@ import {
   updateHeartbeat,
   getSignalHistory,
   getSignalStatistics,
+  getPerformanceData,
 } from '../services/signal.service.js';
 import { authenticate, requireActiveSubscription } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
@@ -199,6 +200,31 @@ router.get('/stats', authenticate, asyncHandler(async (req: Request, res: Respon
   const stats = await getSignalStatistics(req.user!.id, period);
 
   res.json(stats);
+}));
+
+// =============================================================================
+// GET PERFORMANCE DATA (Dashboard Chart)
+// =============================================================================
+
+router.get('/performance', authenticate, asyncHandler(async (req: Request, res: Response) => {
+  const period = (req.query.period as '7D' | '30D' | '90D') || '30D';
+
+  // Validate period parameter
+  if (!['7D', '30D', '90D'].includes(period)) {
+    return res.status(400).json({ error: 'Invalid period. Use 7D, 30D, or 90D' });
+  }
+
+  const result = await getPerformanceData(req.user!.id, period);
+
+  if (!result.success) {
+    return res.status(500).json({ error: result.message });
+  }
+
+  res.json({
+    data: result.data,
+    period,
+    message: result.message,
+  });
 }));
 
 export default router;

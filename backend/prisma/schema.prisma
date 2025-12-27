@@ -139,6 +139,9 @@ model MT5Account {
   // Executions on this account (if SLAVE)
   executions    SignalExecution[]
 
+  // Balance history snapshots
+  snapshots     AccountSnapshot[]
+
   @@unique([userId, accountId])
   @@index([accountId])
   @@index([apiKey])
@@ -367,6 +370,31 @@ model MonthlyReport {
 
   @@unique([userId, year, month])
   @@index([userId])
+}
+
+model AccountSnapshot {
+  id            String   @id @default(uuid())
+  mt5AccountId  String
+  mt5Account    MT5Account @relation(fields: [mt5AccountId], references: [id], onDelete: Cascade)
+
+  // Balance data captured from heartbeat
+  balance       Decimal  @db.Decimal(15, 2)
+  equity        Decimal  @db.Decimal(15, 2)
+  profit        Decimal  @db.Decimal(15, 2)
+
+  // Peak equity for drawdown calculation (highest equity seen up to this point)
+  peakEquity    Decimal  @db.Decimal(15, 2)
+
+  // Date of snapshot (stored as DATE only, not timestamp)
+  snapshotDate  DateTime @db.Date
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Only one snapshot per account per day
+  @@unique([mt5AccountId, snapshotDate])
+  @@index([mt5AccountId])
+  @@index([snapshotDate])
 }
 
 // ============================================================================

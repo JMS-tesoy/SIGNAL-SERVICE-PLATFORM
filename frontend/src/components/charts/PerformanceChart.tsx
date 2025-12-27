@@ -22,6 +22,8 @@ interface DataPoint {
 interface PerformanceChartProps {
   data?: DataPoint[];
   isLoading?: boolean;
+  period?: '7D' | '30D' | '90D';
+  onPeriodChange?: (period: '7D' | '30D' | '90D') => void;
 }
 
 // Generate empty data for display when no real data exists
@@ -74,10 +76,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function PerformanceChart({ data, isLoading }: PerformanceChartProps) {
-  const [period, setPeriod] = useState(90);
+export function PerformanceChart({ data, isLoading, period = '90D', onPeriodChange }: PerformanceChartProps) {
+  // Convert period string to days for empty data generation
+  const periodDays = period === '7D' ? 7 : period === '30D' ? 30 : 90;
 
-  const chartData = data && data.length > 0 ? data : generateEmptyData(period);
+  const chartData = data && data.length > 0 ? data : generateEmptyData(periodDays);
 
   // Calculate totals
   const totalGrowth = chartData.length > 0 ? chartData[chartData.length - 1]?.growth || 0 : 0;
@@ -116,9 +119,9 @@ export function PerformanceChart({ data, isLoading }: PerformanceChartProps) {
           {periods.map((p) => (
             <button
               key={p.value}
-              onClick={() => setPeriod(p.value)}
+              onClick={() => onPeriodChange?.(p.label as '7D' | '30D' | '90D')}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                period === p.value
+                period === p.label
                   ? 'bg-primary text-white'
                   : 'text-foreground-muted hover:text-foreground hover:bg-background-tertiary'
               }`}

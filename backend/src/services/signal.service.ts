@@ -284,8 +284,18 @@ export async function updateHeartbeat(
   data: { balance?: number; equity?: number; profit?: number }
 ): Promise<SignalResult> {
   try {
-    await prisma.mT5Account.updateMany({
+    // Get the MT5 account first (need the id for snapshot)
+    const mt5Account = await prisma.mT5Account.findFirst({
       where: { userId, accountId },
+    });
+
+    if (!mt5Account) {
+      return { success: false, message: 'Account not found' };
+    }
+
+    // Update the MT5Account with current values
+    await prisma.mT5Account.update({
+      where: { id: mt5Account.id },
       data: {
         isConnected: true,
         lastHeartbeat: new Date(),
@@ -294,10 +304,75 @@ export async function updateHeartbeat(
         profit: data.profit,
       },
     });
+
+    // Capture daily snapshot if we have balance/equity data
+    if (data.balance !== undefined && data.equity !== undefined) {
+      await captureBalanceSnapshot(
+        mt5Account.id,
+        data.balance,
+        data.equity,
+        data.profit || 0
+      );
+    }
+
     return { success: true, message: 'Heartbeat updated' };
   } catch (error) {
     console.error('Heartbeat update error:', error);
     return { success: false, message: 'Failed to update heartbeat' };
+  }
+}
+
+// =============================================================================
+// CAPTURE BALANCE SNAPSHOT (Daily)
+// =============================================================================
+
+async function captureBalanceSnapshot(
+  mt5AccountId: string,
+  balance: number,
+  equity: number,
+  profit: number
+): Promise<void> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Normalize to midnight
+
+  try {
+    // Get the latest snapshot for this account to determine peak equity
+    const latestSnapshot = await prisma.accountSnapshot.findFirst({
+      where: { mt5AccountId },
+      orderBy: { snapshotDate: 'desc' },
+    });
+
+    // Calculate peak equity (highest seen so far)
+    const currentPeakEquity = latestSnapshot?.peakEquity
+      ? Math.max(Number(latestSnapshot.peakEquity), equity)
+      : equity;
+
+    // Upsert today's snapshot (only one per day)
+    await prisma.accountSnapshot.upsert({
+      where: {
+        mt5AccountId_snapshotDate: {
+          mt5AccountId,
+          snapshotDate: today,
+        },
+      },
+      create: {
+        mt5AccountId,
+        balance,
+        equity,
+        profit,
+        peakEquity: currentPeakEquity,
+        snapshotDate: today,
+      },
+      update: {
+        balance,
+        equity,
+        profit,
+        peakEquity: currentPeakEquity,
+      },
+    });
+  } catch (error) {
+    // Log but don't fail heartbeat if snapshot fails
+    console.error('Balance snapshot capture error:', error);
   }
 }
 
@@ -375,6 +450,113 @@ export async function getSignalStatistics(userId: string, period: 'day' | 'week'
   });
 
   return stats;
+}
+
+// =============================================================================
+// GET PERFORMANCE DATA (for Dashboard Chart)
+// =============================================================================
+
+interface PerformanceDataPoint {
+  date: string;
+  growth: number;
+  drawdown: number;
+}
+
+export async function getPerformanceData(
+  userId: string,
+  period: '7D' | '30D' | '90D' = '30D'
+): Promise<{ success: boolean; data: PerformanceDataPoint[]; message?: string }> {
+  try {
+    // Calculate start date based on period
+    const now = new Date();
+    const days = period === '7D' ? 7 : period === '30D' ? 30 : 90;
+    const startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0, 0, 0, 0);
+
+    // Get all MT5 accounts for this user
+    const mt5Accounts = await prisma.mT5Account.findMany({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (mt5Accounts.length === 0) {
+      return { success: true, data: [], message: 'No MT5 accounts found' };
+    }
+
+    const accountIds = mt5Accounts.map((a) => a.id);
+
+    // Get all snapshots for user's accounts in the period
+    const snapshots = await prisma.accountSnapshot.findMany({
+      where: {
+        mt5AccountId: { in: accountIds },
+        snapshotDate: { gte: startDate },
+      },
+      orderBy: { snapshotDate: 'asc' },
+    });
+
+    if (snapshots.length === 0) {
+      return { success: true, data: [], message: 'No performance data available' };
+    }
+
+    // Get the initial balance (first snapshot or oldest available)
+    const initialSnapshot = await prisma.accountSnapshot.findFirst({
+      where: { mt5AccountId: { in: accountIds } },
+      orderBy: { snapshotDate: 'asc' },
+    });
+
+    const initialBalance = initialSnapshot ? Number(initialSnapshot.balance) : 0;
+
+    // Group snapshots by date and aggregate across all accounts
+    const dateMap = new Map<string, { totalBalance: number; totalEquity: number; peakEquity: number }>();
+
+    for (const snapshot of snapshots) {
+      const dateKey = snapshot.snapshotDate.toISOString().split('T')[0];
+      const existing = dateMap.get(dateKey);
+
+      if (existing) {
+        existing.totalBalance += Number(snapshot.balance);
+        existing.totalEquity += Number(snapshot.equity);
+        existing.peakEquity = Math.max(existing.peakEquity, Number(snapshot.peakEquity));
+      } else {
+        dateMap.set(dateKey, {
+          totalBalance: Number(snapshot.balance),
+          totalEquity: Number(snapshot.equity),
+          peakEquity: Number(snapshot.peakEquity),
+        });
+      }
+    }
+
+    // Calculate performance metrics
+    const data: PerformanceDataPoint[] = [];
+    let runningPeakEquity = initialBalance;
+
+    for (const [dateKey, values] of dateMap) {
+      // Update running peak equity
+      runningPeakEquity = Math.max(runningPeakEquity, values.totalEquity);
+
+      // Growth: ((current - initial) / initial) * 100
+      const growth = initialBalance > 0
+        ? ((values.totalBalance - initialBalance) / initialBalance) * 100
+        : 0;
+
+      // Drawdown: ((peak - current) / peak) * 100 (always negative or zero)
+      const drawdown = runningPeakEquity > 0
+        ? -((runningPeakEquity - values.totalEquity) / runningPeakEquity) * 100
+        : 0;
+
+      data.push({
+        date: new Date(dateKey).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        growth: Math.round(growth * 100) / 100,
+        drawdown: Math.round(drawdown * 100) / 100,
+      });
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Get performance data error:', error);
+    return { success: false, data: [], message: 'Failed to fetch performance data' };
+  }
 }
 
 // =============================================================================

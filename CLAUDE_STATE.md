@@ -64,6 +64,10 @@ Core backend and MT5 signal pipeline stabilization and hardening.
   - Sidebar toggle fixed (ChevronLeft/Right on desktop, Menu on mobile)
   - Avatar change functionality in Settings (upload, remove, base64 storage)
   - Avatar display in dashboard header and sidebar
+- **Dashboard Chart Fix (Dec 27, 2025):**
+  - Fixed PerformanceChart to show Growth/Drawdown instead of mock signal data
+  - Fixed SymbolBarChart to show empty state instead of mock data
+  - Chart now displays real performance metrics when data is available
 - **E2E Testing Complete (Dec 27, 2025):**
   - Signal send flow tested (MASTER → Backend)
   - Signal receive flow tested (Backend → SLAVE)

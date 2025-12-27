@@ -268,6 +268,12 @@ export const signalApi = {
       `/api/signals/stats${period ? `?period=${period}` : ''}`,
       { token }
     ),
+
+  getPerformance: (token: string, period?: '7D' | '30D' | '90D') =>
+    apiFetch<{ data: { date: string; growth: number; drawdown: number }[]; period: string; message?: string }>(
+      `/api/signals/performance${period ? `?period=${period}` : ''}`,
+      { token }
+    ),
 };
 
 // =============================================================================

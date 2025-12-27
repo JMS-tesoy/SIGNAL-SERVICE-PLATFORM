@@ -141,6 +141,8 @@ export default function DashboardPage() {
   const [recentSignals, setRecentSignals] = useState<RecentSignal[]>([]);
   const [accounts, setAccounts] = useState<MT5Account[]>([]);
   const [signalLimit, setSignalLimit] = useState({ remaining: 0, limit: 0 });
+  const [performanceData, setPerformanceData] = useState<{ date: string; growth: number; drawdown: number }[]>([]);
+  const [performancePeriod, setPerformancePeriod] = useState<'7D' | '30D' | '90D'>('90D');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -171,6 +173,12 @@ export default function DashboardPage() {
         if (limitResult.data) {
           setSignalLimit(limitResult.data);
         }
+
+        // Fetch performance data
+        const performanceResult = await signalApi.getPerformance(accessToken, performancePeriod);
+        if (performanceResult.data?.data) {
+          setPerformanceData(performanceResult.data.data);
+        }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -179,7 +187,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [accessToken, setStats]);
+  }, [accessToken, setStats, performancePeriod]);
 
   const winRate = stats && stats.executed > 0 
     ? Math.round(((stats.executed - stats.failed) / stats.executed) * 100) 
@@ -241,7 +249,12 @@ export default function DashboardPage() {
       {/* Analytics Charts - Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 card">
-          <PerformanceChart isLoading={isLoading} />
+          <PerformanceChart
+            data={performanceData}
+            isLoading={isLoading}
+            period={performancePeriod}
+            onPeriodChange={setPerformancePeriod}
+          />
         </div>
         <div className="card">
           <WinLossDonut
