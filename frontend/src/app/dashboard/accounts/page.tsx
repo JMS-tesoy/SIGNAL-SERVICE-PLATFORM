@@ -12,14 +12,14 @@ import {
   CheckCircle,
   XCircle,
   X,
-  Key, // Added
-  Copy, // Added
+  Key,
+  Copy,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { userApi } from "@/lib/api";
 
 // --- CONFIGURATION ---
-// We need this for the direct API call to generate keys
+// Tries to find the correct backend URL from your environment variables
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
@@ -131,32 +131,39 @@ export default function AccountsPage() {
     }
   };
 
-  // --- NEW FUNCTION: Generate API Key ---
+  // --- UPDATED DEBUG FUNCTION: Generate API Key ---
   const handleGenerateKey = async (accountUuid: string) => {
     if (!accessToken) return;
-    // Clear any previous key
+
     setGeneratedKey(null);
     setActionLoading(accountUuid);
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/user/mt5-accounts/${accountUuid}/api-key`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+      // DEBUG: Log the exact URL we are trying to hit
+      const targetUrl = `${API_BASE_URL}/api/user/mt5-accounts/${accountUuid}/api-key`;
+      console.log("Attempting request to:", targetUrl);
 
-      if (!res.ok) throw new Error("Failed to generate key");
+      const res = await fetch(targetUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      // DEBUG: If it fails, capture the text response from the server
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Backend Error:", res.status, errorText);
+        throw new Error(`Error ${res.status}: ${errorText}`);
+      }
 
       const data = await res.json();
       setGeneratedKey({ id: accountUuid, key: data.apiKey });
-    } catch (err) {
-      console.error("Could not generate API Key", err);
-      alert("Failed to generate API Key. Please try again.");
+    } catch (err: any) {
+      console.error("Full Error Object:", err);
+      // Alert the user with the specific error message
+      alert(`Failed to generate key: ${err.message}`);
     } finally {
       setActionLoading(null);
     }
@@ -243,10 +250,10 @@ export default function AccountsPage() {
                     key={account.id}
                     account={account}
                     onDelete={() => handleDeleteAccount(account.id)}
-                    onGenerateKey={() => handleGenerateKey(account.id)} // Pass function
+                    onGenerateKey={() => handleGenerateKey(account.id)}
                     generatedKey={
                       generatedKey?.id === account.id ? generatedKey.key : null
-                    } // Pass key if matches
+                    }
                     isActionLoading={actionLoading === account.id}
                   />
                 ))}
@@ -267,10 +274,10 @@ export default function AccountsPage() {
                     key={account.id}
                     account={account}
                     onDelete={() => handleDeleteAccount(account.id)}
-                    onGenerateKey={() => handleGenerateKey(account.id)} // Pass function
+                    onGenerateKey={() => handleGenerateKey(account.id)}
                     generatedKey={
                       generatedKey?.id === account.id ? generatedKey.key : null
-                    } // Pass key if matches
+                    }
                     isActionLoading={actionLoading === account.id}
                   />
                 ))}
@@ -432,10 +439,7 @@ function AccountCard({
     : null;
 
   return (
-    <motion.div
-      layout
-      className="card flex flex-col gap-4" // Changed to flex-col to accommodate the key box
-    >
+    <motion.div layout className="card flex flex-col gap-4">
       {/* Top Row: Info and Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
