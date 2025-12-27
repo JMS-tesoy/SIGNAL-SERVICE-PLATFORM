@@ -496,8 +496,8 @@ function AccountCard({
             </div>
           )}
 
-          {/* Connection Status */}
-          <div className="flex items-center gap-2 hidden md:flex">
+          {/* Connection Status - FIXED HERE (Removed conflicting 'flex' class) */}
+          <div className="hidden md:flex items-center gap-2">
             {account.isConnected ? (
               <>
                 <CheckCircle className="w-5 h-5 text-accent-green" />
